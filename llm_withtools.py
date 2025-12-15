@@ -11,7 +11,7 @@ from prompts.tooluse_prompt import get_tooluse_prompt
 from tools import load_all_tools
 
 CLAUDE_MODEL = 'bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-OPENAI_MODEL = 'gpt-5-nano'
+OPENAI_MODEL = 'gpt-5'
 
 def process_tool_call(tools_dict, tool_name, tool_input):
     try:
@@ -49,8 +49,8 @@ def get_response_withtools(
                 "tools": tools,
                 "parallel_tool_calls": False,
             }
-            # gpt-5-nano doesn't support max_completion_tokens
-            if model != "gpt-5-nano":
+            # gpt-5 doesn't support max_completion_tokens
+            if model != "gpt-5":
                 create_args["max_completion_tokens"] = 4096
             response = client.chat.completions.create(**create_args)
         else:
@@ -429,7 +429,7 @@ def chat_with_agent_claude(
 
 def chat_with_agent_openai(
         msg,
-        model='gpt-5-nano',
+        model='gpt-5',
         msg_history=None,
         logging=print,
     ):
