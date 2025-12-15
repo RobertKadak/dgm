@@ -228,6 +228,22 @@ def get_response_from_llm(
         )
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
+    elif model.startswith("gpt-"):
+        new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_message},
+                *new_msg_history,
+            ],
+            temperature=temperature,
+            max_tokens=MAX_OUTPUT_TOKENS,
+            n=1,
+            stop=None,
+            seed=0,
+        )
+        content = response.choices[0].message.content
+        new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     elif model.startswith("o1-") or model.startswith("o3-"):
         new_msg_history = msg_history + [{"role": "user", "content": system_message + msg}]
         response = client.chat.completions.create(

@@ -11,7 +11,7 @@ from prompts.tooluse_prompt import get_tooluse_prompt
 from tools import load_all_tools
 
 CLAUDE_MODEL = 'bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-OPENAI_MODEL = 'o3-mini-2025-01-31'
+OPENAI_MODEL = 'gpt-5-nano'
 
 def process_tool_call(tools_dict, tool_name, tool_input):
     try:
@@ -41,7 +41,7 @@ def get_response_withtools(
                 tool_choice=tool_choice,
                 tools=tools,
             )
-        elif model.startswith('o3-'):
+        elif model.startswith('o3-') or model.startswith('gpt-'):
             response = client.responses.create(
                 model=model,
                 input=messages,
@@ -426,7 +426,7 @@ def chat_with_agent_claude(
 
 def chat_with_agent_openai(
         msg,
-        model='o3-mini-2025-01-31',
+        model='gpt-5-nano',
         msg_history=None,
         logging=print,
     ):
