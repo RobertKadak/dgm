@@ -42,14 +42,14 @@ def get_response_withtools(
                 tools=tools,
             )
         elif model.startswith('o3-') or model.startswith('gpt-'):
-            response = client.responses.create(
+            response = client.chat.completions.create(
                 model=model,
-                input=messages,
+                messages=messages,
+                max_completion_tokens=4096,
                 tool_choice=tool_choice,
                 tools=tools,
                 parallel_tool_calls=False
             )
-            response = response
         else:
             raise ValueError(f"Unsupported model: {model}")
         return response
