@@ -108,18 +108,21 @@ def get_batch_responses_from_llm(
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         # Models that only support temperature=1: gpt-5-nano, o1, o3
         model_temperature = 1 if model in ["gpt-5-nano"] else temperature
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        create_args = {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=model_temperature,
-            max_completion_tokens=MAX_OUTPUT_TOKENS,
-            n=n_responses,
-            stop=None,
-            seed=0,
-        )
+            "temperature": model_temperature,
+            "n": n_responses,
+            "stop": None,
+            "seed": 0,
+        }
+        # gpt-5-nano doesn't support max_completion_tokens
+        if model != "gpt-5-nano":
+            create_args["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+        response = client.chat.completions.create(**create_args)
         content = [r.message.content for r in response.choices]
         new_msg_history = [
             new_msg_history + [{"role": "assistant", "content": c}] for c in content
@@ -128,17 +131,20 @@ def get_batch_responses_from_llm(
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         # Models that only support temperature=1: gpt-5-nano, o1, o3
         model_temperature = 1 if model in ["gpt-5-nano"] else temperature
-        response = client.chat.completions.create(
-            model="meta-llama/llama-3.1-405b-instruct",
-            messages=[
+        create_args = {
+            "model": "meta-llama/llama-3.1-405b-instruct",
+            "messages": [
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=model_temperature,
-            max_completion_tokens=MAX_OUTPUT_TOKENS,
-            n=n_responses,
-            stop=None,
-        )
+            "temperature": model_temperature,
+            "n": n_responses,
+            "stop": None,
+        }
+        # gpt-5-nano doesn't support max_completion_tokens
+        if model != "gpt-5-nano":
+            create_args["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+        response = client.chat.completions.create(**create_args)
         content = [r.message.content for r in response.choices]
         new_msg_history = [
             new_msg_history + [{"role": "assistant", "content": c}] for c in content
@@ -221,36 +227,42 @@ def get_response_from_llm(
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         # Models that only support temperature=1: gpt-5-nano, o1, o3
         model_temperature = 1 if model in ["gpt-5-nano"] else temperature
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        create_args = {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=model_temperature,
-            max_completion_tokens=MAX_OUTPUT_TOKENS,
-            n=1,
-            stop=None,
-            seed=0,
-        )
+            "temperature": model_temperature,
+            "n": 1,
+            "stop": None,
+            "seed": 0,
+        }
+        # gpt-5-nano doesn't support max_completion_tokens
+        if model != "gpt-5-nano":
+            create_args["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+        response = client.chat.completions.create(**create_args)
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     elif model.startswith("gpt-"):
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         # Models that only support temperature=1: gpt-5-nano, o1, o3
         model_temperature = 1 if model in ["gpt-5-nano"] else temperature
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        create_args = {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=model_temperature,
-            max_completion_tokens=MAX_OUTPUT_TOKENS,
-            n=1,
-            stop=None,
-            seed=0,
-        )
+            "temperature": model_temperature,
+            "n": 1,
+            "stop": None,
+            "seed": 0,
+        }
+        # gpt-5-nano doesn't support max_completion_tokens
+        if model != "gpt-5-nano":
+            create_args["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+        response = client.chat.completions.create(**create_args)
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     elif model.startswith("o1-") or model.startswith("o3-"):
@@ -273,17 +285,20 @@ def get_response_from_llm(
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         # Models that only support temperature=1: gpt-5-nano, o1, o3
         model_temperature = 1 if model in ["gpt-5-nano"] else temperature
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
+        create_args = {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=model_temperature,
-            max_completion_tokens=MAX_OUTPUT_TOKENS,
-            n=1,
-            stop=None,
-        )
+            "temperature": model_temperature,
+            "n": 1,
+            "stop": None,
+        }
+        # gpt-5-nano doesn't support max_completion_tokens
+        if model != "gpt-5-nano":
+            create_args["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+        response = client.chat.completions.create(**create_args)
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     elif model in ["deepseek-reasoner"]:
@@ -306,17 +321,20 @@ def get_response_from_llm(
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
         # Models that only support temperature=1: gpt-5-nano, o1, o3
         model_temperature = 1 if model in ["gpt-5-nano"] else temperature
-        response = client.chat.completions.create(
-            model=client_model,
-            messages=[
+        create_args = {
+            "model": client_model,
+            "messages": [
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=model_temperature,
-            max_completion_tokens=MAX_OUTPUT_TOKENS,
-            n=1,
-            stop=None,
-        )
+            "temperature": model_temperature,
+            "n": 1,
+            "stop": None,
+        }
+        # gpt-5-nano doesn't support max_completion_tokens
+        if model != "gpt-5-nano":
+            create_args["max_completion_tokens"] = MAX_OUTPUT_TOKENS
+        response = client.chat.completions.create(**create_args)
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
         resoning_content = response.choices[0].message.reasoning_content
