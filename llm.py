@@ -16,6 +16,7 @@ AVAILABLE_LLMS = [
     "gpt-4o-mini-2024-07-18",
     "gpt-4o-2024-05-13",
     "gpt-4o-2024-08-06",
+    "gpt-5-nano",
     "o1-preview-2024-09-12",
     "o1-mini-2024-09-12",
     "o1-2024-12-17",
@@ -105,13 +106,15 @@ def get_batch_responses_from_llm(
         "gpt-4o-2024-08-06",
     ]:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        # Models that only support temperature=1: gpt-5-nano, o1, o3
+        model_temperature = 1 if model in ["gpt-5-nano"] else temperature
         response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=temperature,
+            temperature=model_temperature,
             max_completion_tokens=MAX_OUTPUT_TOKENS,
             n=n_responses,
             stop=None,
@@ -123,13 +126,15 @@ def get_batch_responses_from_llm(
         ]
     elif model == "llama-3-1-405b-instruct":
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        # Models that only support temperature=1: gpt-5-nano, o1, o3
+        model_temperature = 1 if model in ["gpt-5-nano"] else temperature
         response = client.chat.completions.create(
             model="meta-llama/llama-3.1-405b-instruct",
             messages=[
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=temperature,
+            temperature=model_temperature,
             max_completion_tokens=MAX_OUTPUT_TOKENS,
             n=n_responses,
             stop=None,
@@ -214,13 +219,15 @@ def get_response_from_llm(
         ]
     elif model.startswith("gpt-4o-"):
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        # Models that only support temperature=1: gpt-5-nano, o1, o3
+        model_temperature = 1 if model in ["gpt-5-nano"] else temperature
         response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=temperature,
+            temperature=model_temperature,
             max_completion_tokens=MAX_OUTPUT_TOKENS,
             n=1,
             stop=None,
@@ -230,13 +237,15 @@ def get_response_from_llm(
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     elif model.startswith("gpt-"):
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        # Models that only support temperature=1: gpt-5-nano, o1, o3
+        model_temperature = 1 if model in ["gpt-5-nano"] else temperature
         response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=temperature,
+            temperature=model_temperature,
             max_completion_tokens=MAX_OUTPUT_TOKENS,
             n=1,
             stop=None,
@@ -262,13 +271,15 @@ def get_response_from_llm(
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
     elif model in ["deepseek-chat", "deepseek-coder"]:
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        # Models that only support temperature=1: gpt-5-nano, o1, o3
+        model_temperature = 1 if model in ["gpt-5-nano"] else temperature
         response = client.chat.completions.create(
             model=model,
             messages=[
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=temperature,
+            temperature=model_temperature,
             max_completion_tokens=MAX_OUTPUT_TOKENS,
             n=1,
             stop=None,
@@ -293,13 +304,15 @@ def get_response_from_llm(
         llama_size = model.split("-")[-1]
         client_model = f"meta-llama/llama-3.1-{llama_size}-instruct"
         new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        # Models that only support temperature=1: gpt-5-nano, o1, o3
+        model_temperature = 1 if model in ["gpt-5-nano"] else temperature
         response = client.chat.completions.create(
             model=client_model,
             messages=[
                 {"role": "system", "content": system_message},
                 *new_msg_history,
             ],
-            temperature=temperature,
+            temperature=model_temperature,
             max_completion_tokens=MAX_OUTPUT_TOKENS,
             n=1,
             stop=None,
