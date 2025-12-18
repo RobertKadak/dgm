@@ -22,6 +22,7 @@ AVAILABLE_LLMS = [
     "o1-2024-12-17",
     "o3-mini-2025-01-31",
     # OpenRouter models
+    "openai/gpt-oss-120b",
     "llama3.1-405b",
     # Anthropic Claude models via Amazon Bedrock
     "bedrock/anthropic.claude-3-sonnet-20240229-v1:0",
@@ -66,6 +67,20 @@ def create_client(model: str):
         client_model = model.split("/")[-1]
         print(f"Using Vertex AI with model {client_model}.")
         return anthropic.AnthropicVertex(), client_model
+    elif model == "openai/gpt-oss-120b":
+        print(f"Using OpenRouter API with {model}.")
+        client = openai.OpenAI(
+            api_key=os.environ["OPENROUTER_API_KEY"],
+            base_url="https://openrouter.ai/api/v1"
+        )
+        return client, model
+    elif model == "llama3.1-405b":
+        print(f"Using OpenRouter API with {model}.")
+        client = openai.OpenAI(
+            api_key=os.environ["OPENROUTER_API_KEY"],
+            base_url="https://openrouter.ai/api/v1"
+        )
+        return client, model
     elif 'gpt' in model or model.startswith("o1-") or model.startswith("o3-"):
         print(f"Using OpenAI API with model {model}.")
         return openai.OpenAI(), model
@@ -76,12 +91,6 @@ def create_client(model: str):
             base_url="https://api.deepseek.com"
         )
         return client, model
-    elif model == "llama3.1-405b":
-        print(f"Using OpenAI API with {model}.")
-        client = openai.OpenAI(
-            api_key=os.environ["OPENROUTER_API_KEY"],
-            base_url="https://openrouter.ai/api/v1"
-        ), model
     else:
         raise ValueError(f"Model {model} not supported.")
 
@@ -338,6 +347,35 @@ def get_response_from_llm(
         content = response.choices[0].message.content
         new_msg_history = new_msg_history + [{"role": "assistant", "content": content}]
         resoning_content = response.choices[0].message.reasoning_content
+    elif model == "openai/gpt-oss-120b":
+        new_msg_history = msg_history + [{"role": "user", "content": msg}]
+        
+        # Build messages array
+        messages = [
+            {"role": "system", "content": system_message},
+            *new_msg_history,
+        ]
+        
+        # Call OpenRouter API with reasoning enabled
+        response = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            extra_body={
+                "reasoning": {"enabled": True},
+                "provider": {"sort": "price"}
+            }
+        )
+        
+        content = response.choices[0].message.content
+        
+        # Preserve reasoning_details if present
+        assistant_msg = {"role": "assistant", "content": content}
+        if hasattr(response.choices[0].message, 'reasoning_details'):
+            reasoning_details = response.choices[0].message.reasoning_details
+            if reasoning_details:
+                assistant_msg["reasoning_details"] = reasoning_details
+        
+        new_msg_history = new_msg_history + [assistant_msg]
     else:
         raise ValueError(f"Model {model} not supported.")
     if print_debug:

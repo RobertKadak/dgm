@@ -82,8 +82,13 @@ class AgenticSystem:
         self.test_description = test_description
         self.self_improve = self_improve
         self.instance_id = instance_id if not self_improve else 'dgm'
-        # Prefer OpenAI if OPENAI_API_KEY is set; otherwise fall back to Claude/Bedrock
-        self.code_model = OPENAI_MODEL if os.getenv('OPENAI_API_KEY') else CLAUDE_MODEL
+        # Prefer OpenRouter (gpt-oss) when OPENROUTER_API_KEY is set; otherwise fall back to OpenAI key then Claude/Bedrock
+        if os.getenv('OPENROUTER_API_KEY'):
+            self.code_model = OPENAI_MODEL
+        elif os.getenv('OPENAI_API_KEY'):
+            self.code_model = OPENAI_MODEL
+        else:
+            self.code_model = CLAUDE_MODEL
 
         # Initialize logger and store it in thread-local storage
         self.logger = setup_logger(chat_history_file)

@@ -11,7 +11,7 @@ from prompts.tooluse_prompt import get_tooluse_prompt
 from tools import load_all_tools
 
 CLAUDE_MODEL = 'bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0'
-OPENAI_MODEL = 'gpt-5'
+OPENAI_MODEL = 'openai/gpt-oss-120b'
 
 def process_tool_call(tools_dict, tool_name, tool_input):
     try:
@@ -53,6 +53,19 @@ def get_response_withtools(
             if model != "gpt-5":
                 create_args["max_completion_tokens"] = 4096
             response = client.chat.completions.create(**create_args)
+        elif model == "openai/gpt-oss-120b":
+            create_args = {
+                "model": model,
+                "messages": messages,
+                "tool_choice": tool_choice,
+                "tools": tools,
+                "parallel_tool_calls": False,
+                "extra_body": {
+                    "reasoning": {"enabled": True},
+                    "provider": {"sort": "price"}
+                }
+            }
+            response = client.chat.completions.create(**create_args)
         else:
             raise ValueError(f"Unsupported model: {model}")
         return response
@@ -92,6 +105,15 @@ def check_for_tool_use(response, model=''):
                 'tool_id': tool_call.call_id,
                 'tool_name': tool_call.name,
                 'tool_input': json.loads(tool_call.arguments),
+            }
+    elif model == "openai/gpt-oss-120b" or model.startswith('gpt-'):
+        # OpenRouter and OpenAI models, check for tool_calls in response
+        if hasattr(response.choices[0].message, 'tool_calls') and response.choices[0].message.tool_calls:
+            tool_call = response.choices[0].message.tool_calls[0]
+            return {
+                'tool_id': tool_call.id,
+                'tool_name': tool_call.function.name,
+                'tool_input': json.loads(tool_call.function.arguments),
             }
 
     else:
@@ -144,6 +166,16 @@ def convert_tool_info(tool_info, model=None):
             'description': tool_info['description'],
             'parameters': tool_info['input_schema'],
             "strict": True,
+        }
+    elif model == "openai/gpt-oss-120b" or model.startswith('gpt-'):
+        # OpenRouter and OpenAI models use the function calling format
+        return {
+            'type': 'function',
+            'function': {
+                'name': tool_info['name'],
+                'description': tool_info['description'],
+                'parameters': tool_info['input_schema'],
+            }
         }
     else:
         return tool_info
@@ -281,6 +313,37 @@ def convert_msg_history(msg_history, model=None):
         return convert_msg_history_openai(msg_history)
     else:
         return msg_history
+
+def format_msg_history_for_log(msg_history):
+    """
+    Format message history as a readable string for logging.
+    Extracts text content from the structured message format.
+    """
+    formatted_lines = []
+    
+    for msg in msg_history:
+        role = msg.get('role', 'unknown')
+        content = msg.get('content', [])
+        
+        # Handle both string content and list of content blocks
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            text_parts = []
+            for block in content:
+                if isinstance(block, dict):
+                    text_parts.append(block.get('text', str(block)))
+                else:
+                    text_parts.append(str(block))
+            text = '\n'.join(text_parts)
+        else:
+            text = str(content)
+        
+        formatted_lines.append(f"[{role.upper()}]")
+        formatted_lines.append(text)
+        formatted_lines.append("")  # Empty line between messages
+    
+    return '\n'.join(formatted_lines)
 
 def chat_with_agent_manualtools(msg, model, msg_history=None, logging=print):
     # Construct message
@@ -514,6 +577,97 @@ def chat_with_agent_openai(
 
     return new_msg_history
 
+
+def chat_with_agent_chatcompletions(
+        msg,
+        model,
+        msg_history=None,
+        logging=print,
+    ):
+    """
+    Tool-calling loop for OpenAI-compatible Chat Completions models.
+
+    This is used for OpenRouter (e.g. openai/gpt-oss-120b) and other
+    chat.completions models that return tool_calls under choices[0].message.
+    """
+    if msg_history is None:
+        msg_history = []
+
+    # Keep message format compatible with Chat Completions:
+    # - user/assistant: {role, content: str}
+    # - tool: {role: 'tool', tool_call_id, content: str}
+    new_msg_history = [{"role": "user", "content": msg}]
+
+    separator = '=' * 10
+    logging(f"\n{separator} User Instruction {separator}\n{msg}")
+
+    try:
+        client, client_model = create_client(model)
+
+        all_tools = load_all_tools(logging=logging)
+        tools_dict = {tool['info']['name']: tool for tool in all_tools}
+        tools = [convert_tool_info(tool['info'], model=client_model) for tool in all_tools]
+
+        response = get_response_withtools(
+            client=client,
+            model=client_model,
+            messages=msg_history + new_msg_history,
+            tool_choice="auto",
+            tools=tools,
+            logging=logging,
+        )
+
+        # Iterate tool calls until we get a final assistant message
+        while True:
+            message = response.choices[0].message
+            tool_calls = getattr(message, 'tool_calls', None)
+
+            # If there are tool calls, execute them and continue
+            if tool_calls:
+                # Record the assistant message that triggered tool calls
+                assistant_msg = {
+                    "role": "assistant",
+                    "content": message.content or "",
+                    "tool_calls": tool_calls,
+                }
+                new_msg_history.append(assistant_msg)
+
+                for tool_call in tool_calls:
+                    tool_name = tool_call.function.name
+                    tool_input = json.loads(tool_call.function.arguments or "{}")
+                    tool_result = process_tool_call(tools_dict, tool_name, tool_input)
+
+                    logging(f"Tool Used: {tool_name}")
+                    logging(f"Tool Input: {tool_input}")
+                    logging(f"Tool Result: {tool_result}")
+
+                    new_msg_history.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": tool_result,
+                    })
+
+                response = get_response_withtools(
+                    client=client,
+                    model=client_model,
+                    messages=msg_history + new_msg_history,
+                    tool_choice="auto",
+                    tools=tools,
+                    logging=logging,
+                )
+                continue
+
+            # No tool calls => final response
+            final_text = message.content
+            new_msg_history.append({"role": "assistant", "content": final_text})
+            logging(f"\n{separator} Agent Response {separator}\n{final_text}")
+            break
+
+    except Exception as e:
+        logging(f"Error in chat_with_agent_chatcompletions: {e}")
+
+    return new_msg_history
+
 def chat_with_agent(
     msg,
     model=CLAUDE_MODEL,
@@ -528,7 +682,7 @@ def chat_with_agent(
         # Claude models
         new_msg_history = chat_with_agent_claude(msg, model=model, msg_history=msg_history, logging=logging)
         conv_msg_history = convert_msg_history(new_msg_history, model=model)
-        logging(conv_msg_history)
+        logging(format_msg_history_for_log(conv_msg_history))
         if convert:
             new_msg_history = conv_msg_history
         new_msg_history = msg_history + new_msg_history
@@ -537,13 +691,23 @@ def chat_with_agent(
         # OpenAI models
         new_msg_history = chat_with_agent_openai(msg, model=model, msg_history=msg_history, logging=logging)
         # Current version does not support cross-model conversion
-        # new_msg_history = convert_msg_history(new_msg_history, model=model)
+        conv_msg_history = convert_msg_history(new_msg_history, model=model)
+        logging(format_msg_history_for_log(conv_msg_history))
         new_msg_history = msg_history + new_msg_history
+
+    elif model == "openai/gpt-oss-120b" or model.startswith('gpt-'):
+        # OpenAI-compatible Chat Completions models (including OpenRouter)
+        new_msg_history = chat_with_agent_chatcompletions(msg, model=model, msg_history=msg_history, logging=logging)
+        conv_msg_history = convert_msg_history(new_msg_history, model=model)
+        logging(format_msg_history_for_log(conv_msg_history))
+        if convert:
+            new_msg_history = conv_msg_history
 
     else:
         # Models without in-built tool calling
         new_msg_history = chat_with_agent_manualtools(msg, model=model, msg_history=msg_history, logging=logging)
         conv_msg_history = convert_msg_history(new_msg_history, model=model)
+        logging(format_msg_history_for_log(conv_msg_history))
         if convert:
             new_msg_history = conv_msg_history
 

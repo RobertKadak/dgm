@@ -117,6 +117,7 @@ def process_entry(entry, out_dname, model_name_or_path, model_patch_paths):
             "AWS_REGION_NAME": os.getenv('AWS_REGION_NAME'),
             "AWS_ACCESS_KEY_ID": os.getenv('AWS_ACCESS_KEY_ID'),
             "AWS_SECRET_ACCESS_KEY": os.getenv('AWS_SECRET_ACCESS_KEY'),
+            "OPENROUTER_API_KEY": os.getenv('OPENROUTER_API_KEY'),
             "OPENAI_API_KEY": os.getenv('OPENAI_API_KEY'),
         }
         safe_log("Running the agent")
